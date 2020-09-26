@@ -1,6 +1,5 @@
 let board
 let play = false
-let frame = 0
 
 function setup() {
     var cnv = createCanvas(windowWidth, windowHeight);
@@ -15,12 +14,10 @@ function windowResized() {
 
 function draw() {
     clear()
-    //background('black')
+    background('black')
     board.display()
-    frame++
-    if (frame % 30 && play)
+    if (play)
         board.step()
-        frame = 0
 }
 
 function keyPressed(event) {
