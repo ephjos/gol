@@ -2,15 +2,16 @@ let board
 let play = false
 
 function setup() {
-    var cnv = createCanvas(windowWidth, windowHeight);
-    cnv.style('display', 'cell');
+    var cnv = createCanvas(windowWidth, windowHeight)
+    cnv.style('display', 'cell')
     board = new Board()
+
+    mouseDragged = board.mouseDragged
 }
 
 function windowResized() {
-    resizeCanvas(windowWidth, windowHeight);
+    resizeCanvas(windowWidth, windowHeight)
 }
-
 
 function draw() {
     clear()
@@ -25,19 +26,17 @@ function keyPressed(event) {
     if (event.code == "KeyP") play = !play
 }
 
-function mouseDragged(event) {
-    play = false
-    board.mousePressed(event)
+function mouseMoved(event) {
 }
 
 function mouseReleased(event) {
     play = false
-    board.mouseReleased(event)
+    board.mouseReleased(event.clientX, event.clientY)
 }
 
 function mousePressed(event) {
     play = false
-    board.mousePressed(event)
+    board.mousePressed(event.clientX, event.clientY)
 }
 
 // ----------------------------------------------------------------------------
@@ -74,20 +73,7 @@ class Cell {
         pop()
     }
 
-    mousePressed(event) {
-        if (this.lock) return
-        let u = event.clientX
-        let v = event.clientY
-        let x = floor(u/this.size)
-        let y = floor(v/this.size)
-
-        if (this.x == x && this.y == y) {
-            this.alive ^= 1
-            this.lock = true
-        }
-    }
-
-    mouseReleased(event) {
+    mouseReleased(u, v) {
         this.lock = false
     }
 }
@@ -112,25 +98,39 @@ class Board {
         }
     }
 
-    mousePressed(event) {
-        for (let i=0; i<this.height; i++) {
-            for (let j=0; j<this.width; j++) {
-                this.cells[i][j].mousePressed(event)
-            }
+    mousePressed(u, v) {
+        let y = floor(u/this.cellSize)
+        let x = floor(v/this.cellSize)
+        if (!(((0 <= x && x < this.width)) &&
+            (0 <= y && y < this.height))) return
+        if (this.cells[x][y].lock) return
+
+        this.cells[x][y].alive = !this.cells[x][y].alive
+        this.cells[x][y].lock = true
+    }
+
+    mouseDragged(_) {
+        play = false
+
+        let steps = 50
+        for (let i=0; i<steps; i++) {
+            let lx = Math.floor(lerp(pmouseX, mouseX, i/steps))
+            let ly = Math.floor(lerp(pmouseY, mouseY, i/steps))
+            board.mousePressed(lx,ly)
         }
     }
 
-    mouseReleased(event) {
+    mouseReleased(u, v) {
         for (let i=0; i<this.height; i++) {
             for (let j=0; j<this.width; j++) {
-                this.cells[i][j].mouseReleased(event)
+                this.cells[i][j].mouseReleased(u, v)
             }
         }
     }
 
     step() {
         let oldCells = this.cells
-        let newCells = initArray(
+        this.cells = initArray(
             this.width,
             this.height,
             (i,j)=>new Cell([i,j], this.cellSize))
@@ -147,7 +147,7 @@ class Board {
                 let tr = t && r && oldCells[i-1][j+1].alive
 
                 let ml = l && oldCells[i][j-1].alive
-                let mm = false
+                let mm = false // never count self
                 let mr = r && oldCells[i][j+1].alive
 
                 let bl = b && l && oldCells[i+1][j-1].alive
@@ -159,21 +159,13 @@ class Board {
                     ml + mm + mr +
                     bl + bm + br
 
-                // Rule 1
-                if (oldCells[i][j].alive) {
-                    if (neighborsAlive == 2 || neighborsAlive == 3)
-                        newCells[i][j].alive = true
-                    else
-                        newCells[i][j].alive = false
-                } else {
-                    if (neighborsAlive == 3)
-                        newCells[i][j].alive = true
-                    else
-                        newCells[i][j].alive = false
-                }
+                let isAlive = oldCells[i][j].alive
+
+                this.cells[i][j].alive =
+                    (isAlive && (neighborsAlive == 2 || neighborsAlive == 3)) ||
+                    (!isAlive && neighborsAlive == 3)
             }
         }
-        this.cells = newCells.map((arr)=>arr.slice())
     }
 }
 
